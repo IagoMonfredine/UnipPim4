@@ -1,0 +1,272 @@
+create database HytechDB
+use HytechDB
+
+-- ============================================================
+-- 1. Entidades base
+-- ============================================================
+
+CREATE TABLE Usuario (
+    id_usuario      INT IDENTITY(1,1) PRIMARY KEY,
+    nome            VARCHAR(100),
+    nickname        VARCHAR(50) UNIQUE,
+    email           VARCHAR(100) UNIQUE,
+    senha           VARCHAR(255),
+    data_nascimento DATE
+);
+
+CREATE TABLE SistemaMetricas (
+    id_metrica          INT IDENTITY(1,1) PRIMARY KEY,
+    data                DATE,
+    total_usuarios      INT,
+    media_engajamento   DECIMAL(5,2),
+    taxa_conversao      DECIMAL(5,2)
+);
+
+CREATE TABLE TrilhaAprendizagem (
+    id_trilha   INT IDENTITY(1,1) PRIMARY KEY,
+    nome_trilha VARCHAR(100),
+    descricao   VARCHAR(MAX)
+);
+
+-- ============================================================
+-- 2. Entidades que dependem de Usuario
+-- ============================================================
+
+CREATE TABLE Professor (
+    id_professor        INT IDENTITY(1,1) PRIMARY KEY,
+    id_usuario          INT NOT NULL,
+    especialidade       VARCHAR(100),
+    criador_conteudo    BIT,
+    CONSTRAINT FK_Professor_Usuario
+        FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
+);
+
+CREATE TABLE Aluno (
+    id_aluno            INT IDENTITY(1,1) PRIMARY KEY,
+    id_usuario          INT NOT NULL,
+    pontos_acumulados   INT,
+    streak_atual        INT,
+    CONSTRAINT FK_Aluno_Usuario
+        FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
+);
+
+CREATE TABLE Admin (
+    id_admin    INT IDENTITY(1,1) PRIMARY KEY,
+    id_usuario  INT NOT NULL,
+    CONSTRAINT FK_Admin_Usuario
+        FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
+);
+
+-- ============================================================
+-- 3. Entidades com dependências múltiplas
+-- ============================================================
+
+CREATE TABLE TicketSuporte (
+    id_ticket               INT IDENTITY(1,1) PRIMARY KEY,
+    id_usuario_solicitante  INT NOT NULL,
+    id_usuario_destinatario INT NOT NULL,
+    assunto                 VARCHAR(150),
+    descricao               VARCHAR(MAX),
+    status                  VARCHAR(20),
+    data_abertura           DATETIME,
+    CONSTRAINT FK_Ticket_Solicitante
+        FOREIGN KEY (id_usuario_solicitante) REFERENCES Usuario(id_usuario),
+    CONSTRAINT FK_Ticket_Destinatario
+        FOREIGN KEY (id_usuario_destinatario) REFERENCES Usuario(id_usuario)
+);
+
+CREATE TABLE Materia (
+    id_materia          INT IDENTITY(1,1) PRIMARY KEY,
+    id_professor        INT NOT NULL,
+    id_trilha           INT NOT NULL,
+    titulo              VARCHAR(100),
+    tipo                VARCHAR(50),
+    status_aprovacao    VARCHAR(20),
+    CONSTRAINT FK_Materia_Professor
+        FOREIGN KEY (id_professor) REFERENCES Professor(id_professor),
+    CONSTRAINT FK_Materia_Trilha
+        FOREIGN KEY (id_trilha) REFERENCES TrilhaAprendizagem(id_trilha)
+);
+
+CREATE TABLE Aluno_Trilha (
+    id_Alu_Tri  INT IDENTITY(1,1) PRIMARY KEY,
+    id_aluno    INT NOT NULL,
+    id_trilha   INT NOT NULL,
+    progresso   DECIMAL(5,2),
+    data_inicio DATE,
+    CONSTRAINT FK_AlunoTrilha_Aluno
+        FOREIGN KEY (id_aluno) REFERENCES Aluno(id_aluno),
+    CONSTRAINT FK_AlunoTrilha_Trilha
+        FOREIGN KEY (id_trilha) REFERENCES TrilhaAprendizagem(id_trilha)
+);
+
+-- ============================================================
+-- 4. Tabelas de Nível Inferior
+-- ============================================================
+
+CREATE TABLE Aula (
+    id_aula     INT IDENTITY(1,1) PRIMARY KEY,
+    id_materia  INT NOT NULL,
+    titulo      VARCHAR(100),
+    conteudo    VARCHAR(MAX),
+    CONSTRAINT FK_Aula_Materia
+        FOREIGN KEY (id_materia) REFERENCES Materia(id_materia)
+);
+
+CREATE TABLE Aluno_Aula (
+    id_Alu_Aula         INT IDENTITY(1,1) PRIMARY KEY,
+    id_aluno            INT NOT NULL,
+    id_aula             INT NOT NULL,
+    progresso_concluido BIT,
+    CONSTRAINT FK_AlunoAula_Aluno
+        FOREIGN KEY (id_aluno) REFERENCES Aluno(id_aluno),
+    CONSTRAINT FK_AlunoAula_Aula
+        FOREIGN KEY (id_aula) REFERENCES Aula(id_aula)
+);
+
+-- ============================================================
+-- 5. Questões (quiz de múltipla escolha por matéria)
+-- ============================================================
+
+CREATE TABLE Questao (
+    id_questao          INT IDENTITY(1,1) PRIMARY KEY,
+    id_materia          INT NOT NULL,
+    id_professor        INT NOT NULL,
+    enunciado           VARCHAR(MAX),
+    dificuldade         VARCHAR(20),
+    chaves_recompensa   INT,
+    status_aprovacao    VARCHAR(20),
+    data_criacao        DATETIME,
+    CONSTRAINT FK_Questao_Materia
+        FOREIGN KEY (id_materia) REFERENCES Materia(id_materia),
+    CONSTRAINT FK_Questao_Professor
+        FOREIGN KEY (id_professor) REFERENCES Professor(id_professor)
+);
+
+CREATE TABLE Alternativa (
+    id_alternativa  INT IDENTITY(1,1) PRIMARY KEY,
+    id_questao      INT NOT NULL,
+    texto           VARCHAR(255),
+    correta         BIT,
+    CONSTRAINT FK_Alternativa_Questao
+        FOREIGN KEY (id_questao) REFERENCES Questao(id_questao)
+);
+
+CREATE TABLE Aluno_Questao (
+    id_Alu_Que      INT IDENTITY(1,1) PRIMARY KEY,
+    id_aluno        INT NOT NULL,
+    id_questao      INT NOT NULL,
+    concluida       BIT,
+    data_conclusao  DATETIME,
+    CONSTRAINT FK_AlunoQuestao_Aluno
+        FOREIGN KEY (id_aluno) REFERENCES Aluno(id_aluno),
+    CONSTRAINT FK_AlunoQuestao_Questao
+        FOREIGN KEY (id_questao) REFERENCES Questao(id_questao)
+);
+
+-- ============================================================
+-- 6. Desafios (entidade separada de Matéria/Aula/Questão)
+-- ============================================================
+
+CREATE TABLE Desafio (
+    id_desafio      INT IDENTITY(1,1) PRIMARY KEY,
+    id_professor    INT NOT NULL,
+    id_materia      INT NOT NULL,
+    titulo          VARCHAR(150),
+    enunciado       VARCHAR(MAX),
+    dica            VARCHAR(MAX),
+    dificuldade     VARCHAR(20),
+    status          VARCHAR(20),
+    CONSTRAINT FK_Desafio_Professor
+        FOREIGN KEY (id_professor) REFERENCES Professor(id_professor),
+    CONSTRAINT FK_Desafio_Materia
+        FOREIGN KEY (id_materia) REFERENCES Materia(id_materia)
+);
+
+CREATE TABLE Aluno_Desafio (
+    id_Alu_Des      INT IDENTITY(1,1) PRIMARY KEY,
+    id_aluno        INT NOT NULL,
+    id_desafio      INT NOT NULL,
+    concluido       BIT,
+    data_conclusao  DATETIME,
+    CONSTRAINT FK_AlunoDesafio_Aluno
+        FOREIGN KEY (id_aluno) REFERENCES Aluno(id_aluno),
+    CONSTRAINT FK_AlunoDesafio_Desafio
+        FOREIGN KEY (id_desafio) REFERENCES Desafio(id_desafio)
+);
+
+-- ============================================================
+-- 7. Thread de mensagens do Ticket de Suporte
+-- ============================================================
+
+CREATE TABLE TicketMensagem (
+    id_mensagem          INT IDENTITY(1,1) PRIMARY KEY,
+    id_ticket            INT NOT NULL,
+    id_usuario_remetente INT NOT NULL,
+    texto                VARCHAR(MAX),
+    data_hora            DATETIME,
+    CONSTRAINT FK_TicketMensagem_Ticket
+        FOREIGN KEY (id_ticket) REFERENCES TicketSuporte(id_ticket),
+    CONSTRAINT FK_TicketMensagem_Usuario
+        FOREIGN KEY (id_usuario_remetente) REFERENCES Usuario(id_usuario)
+);
+
+-- ============================================================
+-- 8. Fila de aprovação / moderação de conteúdo
+-- ============================================================
+
+CREATE TABLE Aprovacao (
+    id_aprovacao     INT IDENTITY(1,1) PRIMARY KEY,
+    tipo             VARCHAR(20) NOT NULL,
+    id_aula          INT NULL,
+    id_questao       INT NULL,
+    id_professor     INT NOT NULL,
+    status           VARCHAR(20),
+    data_submissao   DATETIME,
+    CONSTRAINT FK_Aprovacao_Aula
+        FOREIGN KEY (id_aula) REFERENCES Aula(id_aula),
+    CONSTRAINT FK_Aprovacao_Questao
+        FOREIGN KEY (id_questao) REFERENCES Questao(id_questao),
+    CONSTRAINT FK_Aprovacao_Professor
+        FOREIGN KEY (id_professor) REFERENCES Professor(id_professor)
+);
+
+-- ============================================================
+-- 9. Certificado emitido ao concluir uma matéria
+-- ============================================================
+
+CREATE TABLE Certificado (
+    id_certificado  INT IDENTITY(1,1) PRIMARY KEY,
+    id_aluno        INT NOT NULL,
+    id_materia      INT NOT NULL,
+    data_emissao    DATETIME,
+    CONSTRAINT FK_Certificado_Aluno
+        FOREIGN KEY (id_aluno) REFERENCES Aluno(id_aluno),
+    CONSTRAINT FK_Certificado_Materia
+        FOREIGN KEY (id_materia) REFERENCES Materia(id_materia)
+);
+
+-- ============================================================
+-- 10. Log de atividades da plataforma (auditoria)
+-- ============================================================
+
+CREATE TABLE LogAtividade (
+    id_log       INT IDENTITY(1,1) PRIMARY KEY,
+    id_usuario   INT NULL,
+    descricao    VARCHAR(255),
+    data_hora    DATETIME,
+    CONSTRAINT FK_LogAtividade_Usuario
+        FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
+);
+
+-- ============================================================
+-- 11. Configuração de gamificação (linha única de parâmetros)
+-- ============================================================
+
+CREATE TABLE ChavesConfig (
+    id_config               INT IDENTITY(1,1) PRIMARY KEY,
+    chaves_questao_facil    INT,
+    chaves_questao_media    INT,
+    chaves_questao_dificil  INT,
+    chaves_certificado      INT
+);
