@@ -1,5 +1,8 @@
-create database HytechDB
-use HytechDB
+CREATE DATABASE HytechDB
+GO
+
+USE HytechDB
+GO
 
 -- ============================================================
 -- 1. Entidades base
@@ -13,6 +16,7 @@ CREATE TABLE Usuario (
     senha           VARCHAR(255),
     data_nascimento DATE
 );
+GO
 
 CREATE TABLE SistemaMetricas (
     id_metrica          INT IDENTITY(1,1) PRIMARY KEY,
@@ -21,12 +25,14 @@ CREATE TABLE SistemaMetricas (
     media_engajamento   DECIMAL(5,2),
     taxa_conversao      DECIMAL(5,2)
 );
+GO
 
 CREATE TABLE TrilhaAprendizagem (
     id_trilha   INT IDENTITY(1,1) PRIMARY KEY,
     nome_trilha VARCHAR(100),
     descricao   VARCHAR(MAX)
 );
+GO
 
 -- ============================================================
 -- 2. Entidades que dependem de Usuario
@@ -40,6 +46,7 @@ CREATE TABLE Professor (
     CONSTRAINT FK_Professor_Usuario
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
 );
+GO
 
 CREATE TABLE Aluno (
     id_aluno            INT IDENTITY(1,1) PRIMARY KEY,
@@ -49,6 +56,7 @@ CREATE TABLE Aluno (
     CONSTRAINT FK_Aluno_Usuario
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
 );
+GO
 
 CREATE TABLE Admin (
     id_admin    INT IDENTITY(1,1) PRIMARY KEY,
@@ -56,6 +64,7 @@ CREATE TABLE Admin (
     CONSTRAINT FK_Admin_Usuario
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
 );
+GO
 
 -- ============================================================
 -- 3. Entidades com dependências múltiplas
@@ -74,19 +83,24 @@ CREATE TABLE TicketSuporte (
     CONSTRAINT FK_Ticket_Destinatario
         FOREIGN KEY (id_usuario_destinatario) REFERENCES Usuario(id_usuario)
 );
+GO
 
+-- Materia: já com as colunas de interface (icone, chaves_para_desbloquear)
 CREATE TABLE Materia (
-    id_materia          INT IDENTITY(1,1) PRIMARY KEY,
-    id_professor        INT NOT NULL,
-    id_trilha           INT NOT NULL,
-    titulo              VARCHAR(100),
-    tipo                VARCHAR(50),
-    status_aprovacao    VARCHAR(20),
+    id_materia              INT IDENTITY(1,1) PRIMARY KEY,
+    id_professor            INT NOT NULL,
+    id_trilha               INT NOT NULL,
+    titulo                  VARCHAR(100),
+    tipo                    VARCHAR(50),
+    status_aprovacao        VARCHAR(20),
+    icone                   VARCHAR(10)  NULL,
+    chaves_para_desbloquear INT          NOT NULL DEFAULT 0,
     CONSTRAINT FK_Materia_Professor
         FOREIGN KEY (id_professor) REFERENCES Professor(id_professor),
     CONSTRAINT FK_Materia_Trilha
         FOREIGN KEY (id_trilha) REFERENCES TrilhaAprendizagem(id_trilha)
 );
+GO
 
 CREATE TABLE Aluno_Trilha (
     id_Alu_Tri  INT IDENTITY(1,1) PRIMARY KEY,
@@ -99,20 +113,31 @@ CREATE TABLE Aluno_Trilha (
     CONSTRAINT FK_AlunoTrilha_Trilha
         FOREIGN KEY (id_trilha) REFERENCES TrilhaAprendizagem(id_trilha)
 );
+GO
 
 -- ============================================================
 -- 4. Tabelas de Nível Inferior
 -- ============================================================
 
+-- Aula: já com as colunas de interface (ordem, is_extra, chaves_recompensa,
+-- exemplo_codigo, dica_titulo, dica_corpo)
 CREATE TABLE Aula (
-    id_aula     INT IDENTITY(1,1) PRIMARY KEY,
-    id_materia  INT NOT NULL,
-    titulo      VARCHAR(100),
-    conteudo    VARCHAR(MAX),
+    id_aula             INT IDENTITY(1,1) PRIMARY KEY,
+    id_materia          INT NOT NULL,
+    titulo              VARCHAR(100),
+    conteudo            VARCHAR(MAX),
+    ordem               INT           NULL,          -- ordem do tópico dentro da matéria
+    is_extra            BIT           NOT NULL DEFAULT 0,
+    chaves_recompensa   INT           NOT NULL DEFAULT 0,
+    exemplo_codigo      VARCHAR(MAX)  NULL,
+    dica_titulo         VARCHAR(150)  NULL,
+    dica_corpo          VARCHAR(MAX)  NULL,
     CONSTRAINT FK_Aula_Materia
         FOREIGN KEY (id_materia) REFERENCES Materia(id_materia)
 );
+GO
 
+-- Aluno_Aula: já com a constraint de unicidade (1 registro por aluno/aula)
 CREATE TABLE Aluno_Aula (
     id_Alu_Aula         INT IDENTITY(1,1) PRIMARY KEY,
     id_aluno            INT NOT NULL,
@@ -121,13 +146,16 @@ CREATE TABLE Aluno_Aula (
     CONSTRAINT FK_AlunoAula_Aluno
         FOREIGN KEY (id_aluno) REFERENCES Aluno(id_aluno),
     CONSTRAINT FK_AlunoAula_Aula
-        FOREIGN KEY (id_aula) REFERENCES Aula(id_aula)
+        FOREIGN KEY (id_aula) REFERENCES Aula(id_aula),
+    CONSTRAINT UQ_AlunoAula UNIQUE (id_aluno, id_aula)
 );
+GO
 
 -- ============================================================
 -- 5. Questões (quiz de múltipla escolha por matéria)
 -- ============================================================
 
+-- Questao: já com a coluna de interface (codigo_exemplo)
 CREATE TABLE Questao (
     id_questao          INT IDENTITY(1,1) PRIMARY KEY,
     id_materia          INT NOT NULL,
@@ -137,11 +165,13 @@ CREATE TABLE Questao (
     chaves_recompensa   INT,
     status_aprovacao    VARCHAR(20),
     data_criacao        DATETIME,
+    codigo_exemplo      VARCHAR(MAX) NULL,   -- bloco de código exibido junto ao enunciado
     CONSTRAINT FK_Questao_Materia
         FOREIGN KEY (id_materia) REFERENCES Materia(id_materia),
     CONSTRAINT FK_Questao_Professor
         FOREIGN KEY (id_professor) REFERENCES Professor(id_professor)
 );
+GO
 
 CREATE TABLE Alternativa (
     id_alternativa  INT IDENTITY(1,1) PRIMARY KEY,
@@ -151,7 +181,9 @@ CREATE TABLE Alternativa (
     CONSTRAINT FK_Alternativa_Questao
         FOREIGN KEY (id_questao) REFERENCES Questao(id_questao)
 );
+GO
 
+-- Aluno_Questao: já com a constraint de unicidade (1 registro por aluno/questão)
 CREATE TABLE Aluno_Questao (
     id_Alu_Que      INT IDENTITY(1,1) PRIMARY KEY,
     id_aluno        INT NOT NULL,
@@ -161,13 +193,16 @@ CREATE TABLE Aluno_Questao (
     CONSTRAINT FK_AlunoQuestao_Aluno
         FOREIGN KEY (id_aluno) REFERENCES Aluno(id_aluno),
     CONSTRAINT FK_AlunoQuestao_Questao
-        FOREIGN KEY (id_questao) REFERENCES Questao(id_questao)
+        FOREIGN KEY (id_questao) REFERENCES Questao(id_questao),
+    CONSTRAINT UQ_AlunoQuestao UNIQUE (id_aluno, id_questao)
 );
+GO
 
 -- ============================================================
 -- 6. Desafios (entidade separada de Matéria/Aula/Questão)
 -- ============================================================
 
+-- Desafio: já com a coluna de interface (codigo_base)
 CREATE TABLE Desafio (
     id_desafio      INT IDENTITY(1,1) PRIMARY KEY,
     id_professor    INT NOT NULL,
@@ -177,12 +212,15 @@ CREATE TABLE Desafio (
     dica            VARCHAR(MAX),
     dificuldade     VARCHAR(20),
     status          VARCHAR(20),
+    codigo_base     VARCHAR(MAX) NULL,      -- código inicial exibido no editor do desafio
     CONSTRAINT FK_Desafio_Professor
         FOREIGN KEY (id_professor) REFERENCES Professor(id_professor),
     CONSTRAINT FK_Desafio_Materia
         FOREIGN KEY (id_materia) REFERENCES Materia(id_materia)
 );
+GO
 
+-- Aluno_Desafio: já com a constraint de unicidade (1 registro por aluno/desafio)
 CREATE TABLE Aluno_Desafio (
     id_Alu_Des      INT IDENTITY(1,1) PRIMARY KEY,
     id_aluno        INT NOT NULL,
@@ -192,8 +230,10 @@ CREATE TABLE Aluno_Desafio (
     CONSTRAINT FK_AlunoDesafio_Aluno
         FOREIGN KEY (id_aluno) REFERENCES Aluno(id_aluno),
     CONSTRAINT FK_AlunoDesafio_Desafio
-        FOREIGN KEY (id_desafio) REFERENCES Desafio(id_desafio)
+        FOREIGN KEY (id_desafio) REFERENCES Desafio(id_desafio),
+    CONSTRAINT UQ_AlunoDesafio UNIQUE (id_aluno, id_desafio)
 );
+GO
 
 -- ============================================================
 -- 7. Thread de mensagens do Ticket de Suporte
@@ -210,6 +250,7 @@ CREATE TABLE TicketMensagem (
     CONSTRAINT FK_TicketMensagem_Usuario
         FOREIGN KEY (id_usuario_remetente) REFERENCES Usuario(id_usuario)
 );
+GO
 
 -- ============================================================
 -- 8. Fila de aprovação / moderação de conteúdo
@@ -230,6 +271,7 @@ CREATE TABLE Aprovacao (
     CONSTRAINT FK_Aprovacao_Professor
         FOREIGN KEY (id_professor) REFERENCES Professor(id_professor)
 );
+GO
 
 -- ============================================================
 -- 9. Certificado emitido ao concluir uma matéria
@@ -245,6 +287,7 @@ CREATE TABLE Certificado (
     CONSTRAINT FK_Certificado_Materia
         FOREIGN KEY (id_materia) REFERENCES Materia(id_materia)
 );
+GO
 
 -- ============================================================
 -- 10. Log de atividades da plataforma (auditoria)
@@ -258,6 +301,7 @@ CREATE TABLE LogAtividade (
     CONSTRAINT FK_LogAtividade_Usuario
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
 );
+GO
 
 -- ============================================================
 -- 11. Configuração de gamificação (linha única de parâmetros)
@@ -270,3 +314,365 @@ CREATE TABLE ChavesConfig (
     chaves_questao_dificil  INT,
     chaves_certificado      INT
 );
+GO
+
+-- ============================================================
+-- PARTE 2 — TRIGGERS
+-- ============================================================
+
+-- 2.1 Ao aluno concluir uma questão corretamente, credita as chaves na conta dele
+CREATE OR ALTER TRIGGER TR_AlunoQuestao_CreditaChaves
+ON Aluno_Questao
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE A
+    SET A.pontos_acumulados = A.pontos_acumulados + Q.chaves_recompensa
+    FROM Aluno A
+    INNER JOIN inserted I  ON I.id_aluno = A.id_aluno
+    INNER JOIN Questao Q   ON Q.id_questao = I.id_questao
+    LEFT JOIN deleted D    ON D.id_Alu_Que = I.id_Alu_Que
+    WHERE I.concluida = 1
+      AND (D.id_Alu_Que IS NULL OR D.concluida = 0);   -- só credita na transição p/ concluída
+
+    INSERT INTO LogAtividade (id_usuario, descricao, data_hora)
+    SELECT U.id_usuario,
+           'Questão ' + CAST(I.id_questao AS VARCHAR) + ' concluída (+' + CAST(Q.chaves_recompensa AS VARCHAR) + ' chaves)',
+           GETDATE()
+    FROM inserted I
+    INNER JOIN Aluno A   ON A.id_aluno = I.id_aluno
+    INNER JOIN Usuario U ON U.id_usuario = A.id_usuario
+    INNER JOIN Questao Q ON Q.id_questao = I.id_questao
+    LEFT JOIN deleted D  ON D.id_Alu_Que = I.id_Alu_Que
+    WHERE I.concluida = 1
+      AND (D.id_Alu_Que IS NULL OR D.concluida = 0);
+END
+GO
+
+-- 2.2 Ao aluno concluir um desafio, credita pontos fixos por dificuldade e loga
+CREATE OR ALTER TRIGGER TR_AlunoDesafio_CreditaChaves
+ON Aluno_Desafio
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE A
+    SET A.pontos_acumulados = A.pontos_acumulados +
+        CASE Dsf.dificuldade
+            WHEN 'Fácil'   THEN 5
+            WHEN 'Médio'   THEN 10
+            WHEN 'Difícil' THEN 15
+            ELSE 5
+        END
+    FROM Aluno A
+    INNER JOIN inserted I  ON I.id_aluno = A.id_aluno
+    INNER JOIN Desafio Dsf ON Dsf.id_desafio = I.id_desafio
+    LEFT JOIN deleted D    ON D.id_Alu_Des = I.id_Alu_Des
+    WHERE I.concluido = 1
+      AND (D.id_Alu_Des IS NULL OR D.concluido = 0);
+END
+GO
+
+-- 2.3 Ao professor cadastrar uma questão pendente, gera automaticamente o item na fila de aprovação
+CREATE OR ALTER TRIGGER TR_Questao_GeraAprovacao
+ON Questao
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Aprovacao (tipo, id_questao, id_professor, status, data_submissao)
+    SELECT 'questao', I.id_questao, I.id_professor, 'pendente', ISNULL(I.data_criacao, GETDATE())
+    FROM inserted I
+    WHERE I.status_aprovacao = 'pendente';
+END
+GO
+
+-- 2.4 Mesmo comportamento para novas aulas
+CREATE OR ALTER TRIGGER TR_Aula_GeraAprovacao
+ON Aula
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Aprovacao (tipo, id_aula, id_professor, status, data_submissao)
+    SELECT 'aula', I.id_aula, M.id_professor, 'pendente', GETDATE()
+    FROM inserted I
+    INNER JOIN Materia M ON M.id_materia = I.id_materia;
+END
+GO
+
+-- 2.5 Quando o admin muda o status de uma Aprovacao, reflete o status na Questao/Aula de origem
+CREATE OR ALTER TRIGGER TR_Aprovacao_SincronizaStatus
+ON Aprovacao
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE Q SET Q.status_aprovacao = I.status
+    FROM Questao Q
+    INNER JOIN inserted I ON I.id_questao = Q.id_questao
+    WHERE I.tipo = 'questao';
+
+    -- Aula não tem coluna de status próprio no schema original;
+    -- se desejar refletir lá também, adicionar status_aprovacao em Aula.
+END
+GO
+
+-- 2.6 Nova mensagem de professor/admin no ticket muda o status para 'respondido';
+--     nova mensagem do próprio solicitante reabre o ticket
+CREATE OR ALTER TRIGGER TR_TicketMensagem_AtualizaStatus
+ON TicketMensagem
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE T
+    SET T.status = CASE WHEN I.id_usuario_remetente = T.id_usuario_solicitante
+                         THEN 'aberto' ELSE 'respondido' END
+    FROM TicketSuporte T
+    INNER JOIN inserted I ON I.id_ticket = T.id_ticket;
+END
+GO
+
+-- 2.7 Emite certificado automaticamente quando o aluno concluiu todas as aulas
+--     e todas as questões de uma matéria
+CREATE OR ALTER TRIGGER TR_AlunoAula_EmiteCertificado
+ON Aluno_Aula
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH MateriasAfetadas AS (
+        SELECT DISTINCT I.id_aluno, Au.id_materia
+        FROM inserted I
+        INNER JOIN Aula Au ON Au.id_aula = I.id_aula
+        WHERE I.progresso_concluido = 1
+    )
+    INSERT INTO Certificado (id_aluno, id_materia, data_emissao)
+    SELECT MA.id_aluno, MA.id_materia, GETDATE()
+    FROM MateriasAfetadas MA
+    WHERE NOT EXISTS (
+              SELECT 1 FROM Certificado C
+              WHERE C.id_aluno = MA.id_aluno AND C.id_materia = MA.id_materia)
+      -- todas as aulas da matéria concluídas
+      AND NOT EXISTS (
+              SELECT 1 FROM Aula Au2
+              LEFT JOIN Aluno_Aula AA2
+                     ON AA2.id_aula = Au2.id_aula AND AA2.id_aluno = MA.id_aluno AND AA2.progresso_concluido = 1
+              WHERE Au2.id_materia = MA.id_materia AND AA2.id_Alu_Aula IS NULL)
+      -- todas as questões da matéria concluídas
+      AND NOT EXISTS (
+              SELECT 1 FROM Questao Q2
+              LEFT JOIN Aluno_Questao AQ2
+                     ON AQ2.id_questao = Q2.id_questao AND AQ2.id_aluno = MA.id_aluno AND AQ2.concluida = 1
+              WHERE Q2.id_materia = MA.id_materia AND AQ2.id_Alu_Que IS NULL);
+END
+GO
+
+-- 2.8 Impede excluir uma Materia que já possua Aulas ou Questões vinculadas
+--     (proteção extra além do FK, com mensagem amigável)
+CREATE OR ALTER TRIGGER TR_Materia_ImpedeExclusao
+ON Materia
+INSTEAD OF DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM deleted D
+               WHERE EXISTS (SELECT 1 FROM Aula A WHERE A.id_materia = D.id_materia)
+                  OR EXISTS (SELECT 1 FROM Questao Q WHERE Q.id_materia = D.id_materia))
+    BEGIN
+        RAISERROR('Não é possível excluir uma matéria com aulas ou questões vinculadas.', 16, 1);
+        RETURN;
+    END
+    DELETE FROM Materia WHERE id_materia IN (SELECT id_materia FROM deleted);
+END
+GO
+
+-- ============================================================
+-- PARTE 3 — STORED PROCEDURES
+-- ============================================================
+
+-- 3.1 Aluno responde uma questão: valida alternativa, grava e devolve se acertou
+CREATE OR ALTER PROCEDURE sp_ResponderQuestao
+    @id_aluno       INT,
+    @id_questao     INT,
+    @id_alternativa INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @acertou BIT;
+
+    SELECT @acertou = correta FROM Alternativa
+    WHERE id_alternativa = @id_alternativa AND id_questao = @id_questao;
+
+    IF @acertou IS NULL
+    BEGIN
+        RAISERROR('Alternativa não pertence a essa questão.', 16, 1);
+        RETURN;
+    END
+
+    IF EXISTS (SELECT 1 FROM Aluno_Questao WHERE id_aluno = @id_aluno AND id_questao = @id_questao)
+        UPDATE Aluno_Questao
+        SET concluida = @acertou, data_conclusao = GETDATE()
+        WHERE id_aluno = @id_aluno AND id_questao = @id_questao;
+    ELSE
+        INSERT INTO Aluno_Questao (id_aluno, id_questao, concluida, data_conclusao)
+        VALUES (@id_aluno, @id_questao, @acertou, GETDATE());
+
+    SELECT @acertou AS acertou;
+END
+GO
+
+-- 3.2 Marca uma aula como concluída pelo aluno
+CREATE OR ALTER PROCEDURE sp_ConcluirAula
+    @id_aluno INT,
+    @id_aula  INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM Aluno_Aula WHERE id_aluno = @id_aluno AND id_aula = @id_aula)
+        UPDATE Aluno_Aula SET progresso_concluido = 1 WHERE id_aluno = @id_aluno AND id_aula = @id_aula;
+    ELSE
+        INSERT INTO Aluno_Aula (id_aluno, id_aula, progresso_concluido)
+        VALUES (@id_aluno, @id_aula, 1);
+END
+GO
+
+-- 3.3 Abre um novo ticket de suporte já com a primeira mensagem
+CREATE OR ALTER PROCEDURE sp_AbrirTicket
+    @id_usuario_solicitante  INT,
+    @id_usuario_destinatario INT,
+    @assunto                 VARCHAR(150),
+    @descricao               VARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_ticket INT;
+
+    INSERT INTO TicketSuporte (id_usuario_solicitante, id_usuario_destinatario, assunto, descricao, status, data_abertura)
+    VALUES (@id_usuario_solicitante, @id_usuario_destinatario, @assunto, @descricao, 'aberto', GETDATE());
+
+    SET @id_ticket = SCOPE_IDENTITY();
+
+    INSERT INTO TicketMensagem (id_ticket, id_usuario_remetente, texto, data_hora)
+    VALUES (@id_ticket, @id_usuario_solicitante, @descricao, GETDATE());
+
+    SELECT @id_ticket AS id_ticket;
+END
+GO
+
+-- 3.4 Responde um ticket existente (dispara a TR_TicketMensagem_AtualizaStatus)
+CREATE OR ALTER PROCEDURE sp_ResponderTicket
+    @id_ticket            INT,
+    @id_usuario_remetente INT,
+    @texto                VARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO TicketMensagem (id_ticket, id_usuario_remetente, texto, data_hora)
+    VALUES (@id_ticket, @id_usuario_remetente, @texto, GETDATE());
+END
+GO
+
+-- 3.5 Admin aprova ou rejeita um item da fila de aprovação
+CREATE OR ALTER PROCEDURE sp_AvaliarAprovacao
+    @id_aprovacao INT,
+    @aprovado     BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Aprovacao
+    SET status = CASE WHEN @aprovado = 1 THEN 'aprovado' ELSE 'rejeitado' END
+    WHERE id_aprovacao = @id_aprovacao;
+END
+GO
+
+-- 3.6 Atualiza o streak do aluno com base na última atividade registrada em LogAtividade
+CREATE OR ALTER PROCEDURE sp_AtualizarStreak
+    @id_aluno INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_usuario INT, @ultima_atividade DATE, @hoje DATE = CAST(GETDATE() AS DATE);
+
+    SELECT @id_usuario = id_usuario FROM Aluno WHERE id_aluno = @id_aluno;
+
+    SELECT @ultima_atividade = MAX(CAST(data_hora AS DATE))
+    FROM LogAtividade
+    WHERE id_usuario = @id_usuario AND CAST(data_hora AS DATE) < @hoje;
+
+    UPDATE Aluno
+    SET streak_atual = CASE
+                            WHEN @ultima_atividade = DATEADD(DAY, -1, @hoje) THEN streak_atual + 1
+                            WHEN @ultima_atividade IS NULL THEN 1
+                            ELSE 1
+                        END
+    WHERE id_aluno = @id_aluno;
+END
+GO
+
+-- 3.7 Ranking dos N alunos com mais pontos
+CREATE OR ALTER PROCEDURE sp_RankingAlunos
+    @top INT = 10
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP (@top)
+           U.nome, U.nickname, A.pontos_acumulados, A.streak_atual
+    FROM Aluno A
+    INNER JOIN Usuario U ON U.id_usuario = A.id_usuario
+    ORDER BY A.pontos_acumulados DESC;
+END
+GO
+
+-- 3.8 Progresso consolidado de um aluno em uma trilha (usado na tela "Trilha")
+CREATE OR ALTER PROCEDURE sp_ProgressoTrilhaAluno
+    @id_aluno  INT,
+    @id_trilha INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @total_aulas INT, @aulas_concluidas INT,
+            @total_questoes INT, @questoes_concluidas INT;
+
+    SELECT @total_aulas = COUNT(*) FROM Aula Au
+    INNER JOIN Materia M ON M.id_materia = Au.id_materia
+    WHERE M.id_trilha = @id_trilha;
+
+    SELECT @aulas_concluidas = COUNT(*) FROM Aluno_Aula AA
+    INNER JOIN Aula Au ON Au.id_aula = AA.id_aula
+    INNER JOIN Materia M ON M.id_materia = Au.id_materia
+    WHERE M.id_trilha = @id_trilha AND AA.id_aluno = @id_aluno AND AA.progresso_concluido = 1;
+
+    SELECT @total_questoes = COUNT(*) FROM Questao Q
+    INNER JOIN Materia M ON M.id_materia = Q.id_materia
+    WHERE M.id_trilha = @id_trilha;
+
+    SELECT @questoes_concluidas = COUNT(*) FROM Aluno_Questao AQ
+    INNER JOIN Questao Q ON Q.id_questao = AQ.id_questao
+    INNER JOIN Materia M ON M.id_materia = Q.id_materia
+    WHERE M.id_trilha = @id_trilha AND AQ.id_aluno = @id_aluno AND AQ.concluida = 1;
+
+    SELECT
+        @total_aulas AS total_aulas, @aulas_concluidas AS aulas_concluidas,
+        @total_questoes AS total_questoes, @questoes_concluidas AS questoes_concluidas,
+        CASE WHEN (@total_aulas + @total_questoes) = 0 THEN 0
+             ELSE CAST((@aulas_concluidas + @questoes_concluidas) AS DECIMAL(5,2))
+                  / (@total_aulas + @total_questoes) * 100
+        END AS percentual_progresso;
+
+    -- também mantém a tabela Aluno_Trilha sincronizada
+    UPDATE Aluno_Trilha
+    SET progresso = CASE WHEN (@total_aulas + @total_questoes) = 0 THEN 0
+                          ELSE CAST((@aulas_concluidas + @questoes_concluidas) AS DECIMAL(5,2))
+                               / (@total_aulas + @total_questoes) * 100 END
+    WHERE id_aluno = @id_aluno AND id_trilha = @id_trilha;
+END
+GO
